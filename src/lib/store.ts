@@ -1,0 +1,283 @@
+// ============================================================================
+// EnvioTrack — Store global con Zustand + persistencia localStorage
+// ============================================================================
+'use client';
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { Client, ShipmentStatus, ActiveFilters, DashboardStats, TrackingEvent } from './types';
+
+/** Genera un ID único */
+function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/** Interfaz del store principal */
+interface AppStore {
+  // Estado
+  clients: Client[];
+  filters: ActiveFilters;
+  isDarkMode: boolean;
+  toasts: Toast[];
+
+  // Acciones CRUD
+  addClient: (client: Omit<Client, 'id' | 'createdAt' | 'lastUpdate' | 'deletedAt' | 'trackingHistory'>) => void;
+  updateClient: (id: string, data: Partial<Client>) => void;
+  updateClientStatus: (id: string, status: ShipmentStatus, description?: string, location?: string) => void;
+
+  // Papelera
+  softDelete: (id: string) => void;
+  restore: (id: string) => void;
+  permanentDelete: (id: string) => void;
+  emptyTrash: () => void;
+
+  // Filtros
+  setFilters: (filters: Partial<ActiveFilters>) => void;
+  resetFilters: () => void;
+
+  // Tema
+  toggleDarkMode: () => void;
+  setDarkMode: (value: boolean) => void;
+
+  // Toasts
+  addToast: (toast: Omit<Toast, 'id'>) => void;
+  removeToast: (id: string) => void;
+
+  // Getters computados
+  getActiveClients: () => Client[];
+  getTrashClients: () => Client[];
+  getFilteredClients: () => Client[];
+  getStats: () => DashboardStats;
+  getClientById: (id: string) => Client | undefined;
+}
+
+export interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'info' | 'undo';
+  message: string;
+  action?: () => void;
+  actionLabel?: string;
+}
+
+const DEFAULT_FILTERS: ActiveFilters = {
+  search: '',
+  status: 'all',
+  provider: 'all',
+  dateRange: 'all',
+};
+
+export const useAppStore = create<AppStore>()(
+  persist(
+    (set, get) => ({
+      // ─── Estado inicial ─────────────────────────────────────────────
+      clients: [],
+      filters: DEFAULT_FILTERS,
+      isDarkMode: false,
+      toasts: [],
+
+      // ─── CRUD ──────────────────────────────────────────────────────
+      addClient: (clientData) => {
+        const now = new Date().toISOString();
+        const newClient: Client = {
+          ...clientData,
+          id: generateId(),
+          createdAt: now,
+          lastUpdate: now,
+          deletedAt: null,
+          trackingHistory: [
+            {
+              id: generateId(),
+              status: clientData.status,
+              description: `Envío registrado como "${clientData.status}"`,
+              location: clientData.city,
+              timestamp: now,
+            },
+          ],
+        };
+        set((state) => ({ clients: [newClient, ...state.clients] }));
+      },
+
+      updateClient: (id, data) => {
+        set((state) => ({
+          clients: state.clients.map((c) =>
+            c.id === id
+              ? { ...c, ...data, lastUpdate: new Date().toISOString() }
+              : c
+          ),
+        }));
+      },
+
+      updateClientStatus: (id, status, description, location) => {
+        const now = new Date().toISOString();
+        set((state) => ({
+          clients: state.clients.map((c) => {
+            if (c.id !== id) return c;
+            const event: TrackingEvent = {
+              id: generateId(),
+              status,
+              description: description || `Estado actualizado a "${status}"`,
+              location: location || c.city,
+              timestamp: now,
+            };
+            return {
+              ...c,
+              status,
+              lastUpdate: now,
+              trackingHistory: [...c.trackingHistory, event],
+            };
+          }),
+        }));
+      },
+
+      // ─── Papelera ──────────────────────────────────────────────────
+      softDelete: (id) => {
+        set((state) => ({
+          clients: state.clients.map((c) =>
+            c.id === id ? { ...c, deletedAt: new Date().toISOString() } : c
+          ),
+        }));
+      },
+
+      restore: (id) => {
+        set((state) => ({
+          clients: state.clients.map((c) =>
+            c.id === id ? { ...c, deletedAt: null } : c
+          ),
+        }));
+      },
+
+      permanentDelete: (id) => {
+        set((state) => ({
+          clients: state.clients.filter((c) => c.id !== id),
+        }));
+      },
+
+      emptyTrash: () => {
+        set((state) => ({
+          clients: state.clients.filter((c) => c.deletedAt === null),
+        }));
+      },
+
+      // ─── Filtros ───────────────────────────────────────────────────
+      setFilters: (filters) => {
+        set((state) => ({
+          filters: { ...state.filters, ...filters },
+        }));
+      },
+
+      resetFilters: () => {
+        set({ filters: DEFAULT_FILTERS });
+      },
+
+      // ─── Tema ──────────────────────────────────────────────────────
+      toggleDarkMode: () => {
+        set((state) => ({ isDarkMode: !state.isDarkMode }));
+      },
+
+      setDarkMode: (value) => {
+        set({ isDarkMode: value });
+      },
+
+      // ─── Toasts ────────────────────────────────────────────────────
+      addToast: (toast) => {
+        const id = generateId();
+        set((state) => ({ toasts: [...state.toasts, { ...toast, id }] }));
+        // Auto-remove después de 4 segundos
+        setTimeout(() => get().removeToast(id), 4000);
+      },
+
+      removeToast: (id) => {
+        set((state) => ({
+          toasts: state.toasts.filter((t) => t.id !== id),
+        }));
+      },
+
+      // ─── Getters computados ────────────────────────────────────────
+      getActiveClients: () => {
+        return get().clients.filter((c) => c.deletedAt === null);
+      },
+
+      getTrashClients: () => {
+        return get().clients.filter((c) => c.deletedAt !== null);
+      },
+
+      getFilteredClients: () => {
+        const { clients, filters } = get();
+        let filtered = clients.filter((c) => c.deletedAt === null);
+
+        // Filtro por búsqueda
+        if (filters.search) {
+          const search = filters.search.toLowerCase();
+          filtered = filtered.filter(
+            (c) =>
+              c.name.toLowerCase().includes(search) ||
+              c.trackingNumber.toLowerCase().includes(search) ||
+              c.city.toLowerCase().includes(search) ||
+              c.phone.includes(search)
+          );
+        }
+
+        // Filtro por estado
+        if (filters.status !== 'all') {
+          filtered = filtered.filter((c) => c.status === filters.status);
+        }
+
+        // Filtro por transportadora
+        if (filters.provider !== 'all') {
+          filtered = filtered.filter((c) => c.shippingProvider === filters.provider);
+        }
+
+        // Filtro por fecha
+        if (filters.dateRange !== 'all') {
+          const now = new Date();
+          const start = new Date();
+
+          switch (filters.dateRange) {
+            case 'today':
+              start.setHours(0, 0, 0, 0);
+              break;
+            case 'week':
+              start.setDate(now.getDate() - 7);
+              break;
+            case 'month':
+              start.setMonth(now.getMonth() - 1);
+              break;
+          }
+
+          filtered = filtered.filter((c) => new Date(c.shipDate) >= start);
+        }
+
+        return filtered;
+      },
+
+      getStats: () => {
+        const active = get().getActiveClients();
+        const totalCollected = active.reduce((acc, c) => acc + (c.isPaid ? (c.price || 0) : 0), 0);
+        const totalPending = active.reduce((acc, c) => acc + (!c.isPaid ? (c.price || 0) : 0), 0);
+
+        return {
+          total: active.length,
+          recibido: active.filter((c) => c.status === 'recibido').length,
+          en_camino: active.filter((c) => c.status === 'en_camino').length,
+          devolucion: active.filter((c) => c.status === 'devolucion').length,
+          pendiente: active.filter((c) => c.status === 'pendiente').length,
+          cancelado: active.filter((c) => c.status === 'cancelado').length,
+          totalCollected,
+          totalPending,
+        };
+      },
+
+      getClientById: (id) => {
+        return get().clients.find((c) => c.id === id);
+      },
+    }),
+    {
+      name: 'enviotrack-storage',
+      // Solo persistir datos esenciales, no los toasts
+      partialize: (state) => ({
+        clients: state.clients,
+        isDarkMode: state.isDarkMode,
+      }),
+    }
+  )
+);
