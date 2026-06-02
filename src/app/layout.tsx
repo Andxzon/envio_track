@@ -59,6 +59,18 @@ export default function RootLayout({
         {/* iOS PWA meta tags */}
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
+        {/* Service Worker registration for PWA install */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </head>
       <body className="min-h-dvh antialiased">
         <ThemeProvider>
