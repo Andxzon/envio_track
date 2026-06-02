@@ -12,11 +12,18 @@ const STATIC_ASSETS = [
   '/icons/icon-512x512.png',
 ];
 
-// Instalar: cachear los recursos estáticos principales
+// Instalar: cachear los recursos estáticos principales de forma segura
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Intentamos cachear cada asset individualmente para que no falle todo si uno no existe
+      for (const asset of STATIC_ASSETS) {
+        try {
+          await cache.add(asset);
+        } catch (error) {
+          console.warn('No se pudo cachear:', asset);
+        }
+      }
     })
   );
   self.skipWaiting();
