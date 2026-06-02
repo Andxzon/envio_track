@@ -56,6 +56,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
+        {/* PWA manifest link */}
+        <link rel="manifest" href="/manifest.webmanifest" />
         {/* iOS PWA meta tags */}
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
