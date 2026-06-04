@@ -3,7 +3,7 @@
 // ============================================================================
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,6 +35,17 @@ const clientSchema = z.object({
 
 type ClientFormData = z.infer<typeof clientSchema>;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Devuelve la fecha de hoy en formato YYYY-MM-DD usando la zona horaria local */
+function getTodayLocal(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 interface ClientFormProps {
@@ -47,6 +58,7 @@ export function ClientForm({ editClient }: ClientFormProps) {
   const updateClient = useAppStore((s) => s.updateClient);
   const addToast = useAppStore((s) => s.addToast);
   const [saved, setSaved] = useState(false);
+  const isSubmittedRef = useRef(false);
 
   const {
     register,
@@ -74,66 +86,91 @@ export function ClientForm({ editClient }: ClientFormProps) {
       : {
           status: 'pendiente' as const,
           shippingProvider: 'interrapidisimo' as const,
-          shipDate: new Date().toISOString().split('T')[0],
+          shipDate: getTodayLocal(),
           price: undefined,
           isPaid: false,
         },
   });
 
-  const [isSubmitted, setIsSubmitted] = useState(false);
-
   // Auto-guardado en localStorage (borrador)
   const watchedValues = watch();
   useEffect(() => {
-    if (!editClient && !isSubmitted) {
+    // No guardar borrador si ya se envió el formulario (ref sincrónico)
+    if (!editClient && !isSubmittedRef.current) {
       const timer = setTimeout(() => {
         localStorage.setItem('enviotrack-draft', JSON.stringify(watchedValues));
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [watchedValues, editClient, isSubmitted]);
+  }, [watchedValues, editClient]);
 
-  // Cargar borrador al montar
+  // Cargar borrador al montar — siempre forzar la fecha de hoy
   useEffect(() => {
     if (!editClient) {
       const draft = localStorage.getItem('enviotrack-draft');
       if (draft) {
         try {
           const parsed = JSON.parse(draft);
+          // Siempre usar la fecha de hoy, no la del borrador viejo
+          parsed.shipDate = getTodayLocal();
           reset(parsed);
-        } catch { /* ignorar */ }
+        } catch {
+          // Si el borrador está corrupto, resetear con valores frescos
+          reset({
+            name: '',
+            phone: '',
+            address: '',
+            city: '',
+            trackingNumber: '',
+            shippingProvider: 'interrapidisimo',
+            status: 'pendiente',
+            price: undefined,
+            isPaid: false,
+            notes: '',
+            shipDate: getTodayLocal(),
+          });
+        }
       }
     }
-  }, [editClient, reset]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editClient]);
 
-  const onSubmit = (data: ClientFormData) => {
+  const onSubmit = useCallback((data: ClientFormData) => {
+    // Marcar como enviado INMEDIATAMENTE (sincrónico) para bloquear auto-save
+    isSubmittedRef.current = true;
+
+    // Convertir fecha local a ISO preservando la fecha seleccionada
+    const [y, m, d] = data.shipDate.split('-').map(Number);
+    const shipDateISO = new Date(y, m - 1, d, 12, 0, 0).toISOString();
+
     let clientId: string;
 
     if (editClient) {
       clientId = editClient.id;
       updateClient(clientId, {
         ...data,
-        shipDate: new Date(data.shipDate).toISOString(),
+        shipDate: shipDateISO,
         notes: data.notes || '',
         address: data.address || '',
         price: data.price || 0,
         isPaid: data.isPaid || false,
-        isSyncing: true, // Mostrar spinner
+        isSyncing: true,
       });
       addToast({ type: 'success', message: 'Cliente actualizado localmente. Subiendo...' });
     } else {
       clientId = addClient({
         ...data,
-        shipDate: new Date(data.shipDate).toISOString(),
+        shipDate: shipDateISO,
         notes: data.notes || '',
         address: data.address || '',
         price: data.price || 0,
         isPaid: data.isPaid || false,
       });
-      setIsSubmitted(true);
+
+      // Eliminar borrador ANTES de resetear para que el auto-save no lo re-guarde
       localStorage.removeItem('enviotrack-draft');
-      
-      // Reiniciar formulario para evitar que Next.js cachee el estado
+
+      // Reiniciar formulario con valores completamente frescos
       reset({
         name: '',
         phone: '',
@@ -145,20 +182,21 @@ export function ClientForm({ editClient }: ClientFormProps) {
         price: undefined,
         isPaid: false,
         notes: '',
-        shipDate: new Date().toISOString().split('T')[0],
+        shipDate: getTodayLocal(),
       });
-      
+
       addToast({ type: 'success', message: 'Cliente guardado localmente. Subiendo...' });
     }
 
     // Disparar subida en segundo plano
-    import('@/lib/migration-service').then((m) => {
-      m.uploadSingleClient(clientId);
+    import('@/lib/migration-service').then((mod) => {
+      mod.uploadSingleClient(clientId);
     });
 
     setSaved(true);
     setTimeout(() => router.push('/'), 600);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editClient, addClient, updateClient, addToast, reset, router]);
 
   const inputClass = (field: keyof ClientFormData) =>
     `input-base ${errors[field] ? 'border-red-500 focus:border-red-500 focus:ring-red-500/15' : ''}`;
