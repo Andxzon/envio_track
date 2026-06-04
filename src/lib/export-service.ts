@@ -73,7 +73,7 @@ export async function exportToExcel(clients: Client[]) {
     'Guía de Seguimiento': c.trackingNumber,
     'Transportadora': PROVIDER_LABELS[c.shippingProvider],
     'Estado Actual': STATUS_CONFIG[c.status].label,
-    'Precio ($)': c.price || 0,
+    'Precio ($)': c.price ?? '',
     'Estado Pago': c.isPaid ? 'Pagado' : 'Por cobrar',
     'Fecha de Envío': format(new Date(c.shipDate), 'dd/MM/yyyy'),
     'Observaciones': c.notes,
@@ -142,9 +142,9 @@ export async function exportToPDF(clients: Client[]) {
           ${config.label}
         </span>
       </td>
-      <td style="font-weight: 600;">$${(c.price || 0).toLocaleString('es-CO')}</td>
+      <td style="font-weight: 600;">${c.price != null ? `$${c.price.toLocaleString('es-CO')}` : ''}</td>
       <td>
-        ${c.price > 0 ? (c.isPaid 
+        ${c.price != null && c.price > 0 ? (c.isPaid 
           ? '<span style="color: #059669; font-weight: 600;">Pagado</span>' 
           : '<span style="color: #dc2626; font-weight: 600;">Por cobrar</span>')
           : '<span style="color: #6b7280;">-</span>'}

@@ -9,6 +9,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { shippingProviderService } from '@/lib/shipping-provider-service';
 import { PROVIDER_LABELS, type Client } from '@/lib/types';
+import citiesData from '@/lib/data/colombia-cities.json';
+import { RouteMap } from '@/components/routing/RouteMap';
 
 interface TrackingModalProps {
   client: Client | null;
@@ -127,6 +129,22 @@ export function TrackingModal({ client, isOpen, onClose }: TrackingModalProps) {
             )}
           </div>
         </div>
+
+        {/* Mapa de Ruta */}
+        {(() => {
+          const clientCityData = citiesData.find(c => `${c.city}, ${c.department}` === client.city);
+          if (clientCityData && clientCityData.lat && clientCityData.lng) {
+            return (
+              <div>
+                <h4 className="text-sm font-semibold text-foreground mb-3">
+                  Ruta Estimada
+                </h4>
+                <RouteMap destLat={clientCityData.lat} destLng={clientCityData.lng} />
+              </div>
+            );
+          }
+          return null;
+        })()}
       </div>
     </Modal>
   );

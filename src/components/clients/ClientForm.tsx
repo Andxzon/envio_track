@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
@@ -13,6 +13,9 @@ import { Save, ArrowLeft, Check } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { STATUS_CONFIG, PROVIDER_LABELS, type ShipmentStatus, type ShippingProvider } from '@/lib/types';
 import type { Client } from '@/lib/types';
+import { CityAutocomplete } from '@/components/ui/CityAutocomplete';
+import citiesData from '@/lib/data/colombia-cities.json';
+import { RouteMap } from '@/components/routing/RouteMap';
 
 // ─── Schema de validación ─────────────────────────────────────────────────────
 
@@ -24,7 +27,7 @@ const clientSchema = z.object({
   trackingNumber: z.string().min(3, 'La guía es obligatoria'),
   shippingProvider: z.enum(['interrapidisimo', 'coordinadora', 'servientrega', 'envia', 'otro'] as const),
   status: z.enum(['recibido', 'en_camino', 'devolucion', 'pendiente', 'cancelado'] as const),
-  price: z.number().min(0, 'El precio no puede ser negativo'),
+  price: z.number().min(0, 'El precio no puede ser negativo').optional(),
   isPaid: z.boolean(),
   notes: z.string().optional(),
   shipDate: z.string().min(1, 'La fecha es obligatoria'),
@@ -47,6 +50,7 @@ export function ClientForm({ editClient }: ClientFormProps) {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
     watch,
@@ -62,7 +66,7 @@ export function ClientForm({ editClient }: ClientFormProps) {
           trackingNumber: editClient.trackingNumber,
           shippingProvider: editClient.shippingProvider,
           status: editClient.status,
-          price: editClient.price || 0,
+          price: editClient.price ?? undefined,
           isPaid: editClient.isPaid || false,
           notes: editClient.notes,
           shipDate: editClient.shipDate.split('T')[0],
@@ -71,21 +75,23 @@ export function ClientForm({ editClient }: ClientFormProps) {
           status: 'pendiente' as const,
           shippingProvider: 'interrapidisimo' as const,
           shipDate: new Date().toISOString().split('T')[0],
-          price: 0,
+          price: undefined,
           isPaid: false,
         },
   });
 
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
   // Auto-guardado en localStorage (borrador)
   const watchedValues = watch();
   useEffect(() => {
-    if (!editClient) {
+    if (!editClient && !isSubmitted) {
       const timer = setTimeout(() => {
         localStorage.setItem('enviotrack-draft', JSON.stringify(watchedValues));
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [watchedValues, editClient]);
+  }, [watchedValues, editClient, isSubmitted]);
 
   // Cargar borrador al montar
   useEffect(() => {
@@ -124,7 +130,24 @@ export function ClientForm({ editClient }: ClientFormProps) {
         price: data.price || 0,
         isPaid: data.isPaid || false,
       });
+      setIsSubmitted(true);
       localStorage.removeItem('enviotrack-draft');
+      
+      // Reiniciar formulario para evitar que Next.js cachee el estado
+      reset({
+        name: '',
+        phone: '',
+        address: '',
+        city: '',
+        trackingNumber: '',
+        shippingProvider: 'interrapidisimo',
+        status: 'pendiente',
+        price: undefined,
+        isPaid: false,
+        notes: '',
+        shipDate: new Date().toISOString().split('T')[0],
+      });
+      
       addToast({ type: 'success', message: 'Cliente guardado localmente. Subiendo...' });
     }
 
@@ -210,18 +233,34 @@ export function ClientForm({ editClient }: ClientFormProps) {
         </div>
 
         {/* Ciudad */}
-        <div>
+        <div className="relative z-20">
           <label className="text-sm font-medium text-foreground mb-1.5 block">
             Ciudad *
           </label>
-          <input
-            {...register('city')}
-            className={inputClass('city')}
-            placeholder="Ej: Bogotá"
+          <Controller
+            name="city"
+            control={control}
+            render={({ field }) => (
+              <CityAutocomplete
+                value={field.value || ''}
+                onChange={field.onChange}
+                error={errors.city?.message}
+              />
+            )}
           />
           {errors.city && (
             <p className="text-xs text-red-500 mt-1">{errors.city.message}</p>
           )}
+
+          {/* Mapa y Estimación de tiempo (si la ciudad tiene coordenadas) */}
+          {(() => {
+            if (!watch('city')) return null;
+            const selectedCityData = citiesData.find(c => `${c.city}, ${c.department}` === watch('city'));
+            if (selectedCityData && selectedCityData.lat && selectedCityData.lng) {
+              return <RouteMap destLat={selectedCityData.lat} destLng={selectedCityData.lng} />;
+            }
+            return null;
+          })()}
         </div>
 
         {/* Guía */}
@@ -308,17 +347,28 @@ export function ClientForm({ editClient }: ClientFormProps) {
           <label className="text-sm font-medium text-foreground mb-1.5 block">
             Precio de venta
           </label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted text-sm font-medium">$</span>
-            <input
-              {...register('price', { valueAsNumber: true })}
-              type="number"
-              min="0"
-              step="100"
-              className={`${inputClass('price')} !pl-8`}
-              placeholder="0"
-            />
-          </div>
+          <Controller
+            name="price"
+            control={control}
+            render={({ field }) => (
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted text-sm font-medium">$</span>
+                <input
+                  {...field}
+                  type="text"
+                  min="0"
+                  step="100"
+                  className={`${inputClass('price')} !pl-8`}
+                  placeholder=""
+                  value={field.value ? Number(field.value).toLocaleString('es-CO') : ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\./g, '');
+                    field.onChange(raw ? Number(raw) : undefined);
+                  }}
+                />
+              </div>
+            )}
+          />
         </div>
 
         {/* Estado de pago */}
