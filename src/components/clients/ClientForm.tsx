@@ -101,18 +101,22 @@ export function ClientForm({ editClient }: ClientFormProps) {
   }, [editClient, reset]);
 
   const onSubmit = (data: ClientFormData) => {
+    let clientId: string;
+
     if (editClient) {
-      updateClient(editClient.id, {
+      clientId = editClient.id;
+      updateClient(clientId, {
         ...data,
         shipDate: new Date(data.shipDate).toISOString(),
         notes: data.notes || '',
         address: data.address || '',
         price: data.price || 0,
         isPaid: data.isPaid || false,
+        isSyncing: true, // Mostrar spinner
       });
-      addToast({ type: 'success', message: 'Cliente actualizado correctamente' });
+      addToast({ type: 'success', message: 'Cliente actualizado localmente. Subiendo...' });
     } else {
-      addClient({
+      clientId = addClient({
         ...data,
         shipDate: new Date(data.shipDate).toISOString(),
         notes: data.notes || '',
@@ -121,8 +125,13 @@ export function ClientForm({ editClient }: ClientFormProps) {
         isPaid: data.isPaid || false,
       });
       localStorage.removeItem('enviotrack-draft');
-      addToast({ type: 'success', message: 'Cliente agregado exitosamente' });
+      addToast({ type: 'success', message: 'Cliente guardado localmente. Subiendo...' });
     }
+
+    // Disparar subida en segundo plano
+    import('@/lib/migration-service').then((m) => {
+      m.uploadSingleClient(clientId);
+    });
 
     setSaved(true);
     setTimeout(() => router.push('/'), 600);

@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Moon, Sun, Download, FileSpreadsheet, BellRing, Settings2, Package, ChevronRight } from 'lucide-react';
+import { Moon, Sun, Download, FileSpreadsheet, BellRing, Settings2, Package, ChevronRight, CloudUpload } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { BottomNav } from '@/components/ui/BottomNav';
 // export-service se importa dinámicamente en cada handler para evitar SSR issues
@@ -17,6 +17,39 @@ export default function SettingsPage() {
   const addToast = useAppStore((s) => s.addToast);
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const migrationService = await import('@/lib/migration-service');
+      await migrationService.syncFromSupabase();
+      addToast({ type: 'success', message: 'Datos sincronizados con éxito' });
+    } catch (e: any) {
+      addToast({ type: 'error', message: e.message || 'Error al sincronizar' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleMigrate = async () => {
+    setIsMigrating(true);
+    try {
+      const activeClients = clients.filter((c) => c.deletedAt === null);
+      if (activeClients.length === 0) {
+        addToast({ type: 'info', message: 'No hay datos locales para migrar' });
+        return;
+      }
+      const migrationService = await import('@/lib/migration-service');
+      await migrationService.migrateLocalDataToSupabase();
+      addToast({ type: 'success', message: 'Datos migrados a la nube correctamente' });
+    } catch (e: any) {
+      addToast({ type: 'error', message: e.message || 'Error al migrar datos' });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
 
   const handleExportExcel = async () => {
     setIsExportingExcel(true);
@@ -112,6 +145,54 @@ export default function SettingsPage() {
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted" />
               </div>
+            </div>
+          </section>
+
+          {/* Base de Datos */}
+          <section>
+            <SectionTitle>Base de Datos</SectionTitle>
+            <div className="bg-surface border-y sm:border-x sm:border-border sm:rounded-2xl overflow-hidden divide-y divide-border">
+              <button
+                onClick={handleMigrate}
+                disabled={isMigrating}
+                className="w-full flex items-center justify-between px-4 py-3.5 bg-surface active:bg-surface-elevated transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                    <CloudUpload className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">Subir a la nube</span>
+                    <span className="text-xs text-muted">Respalda tus datos locales en Supabase</span>
+                  </div>
+                </div>
+                {isMigrating ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-muted border-t-accent animate-spin" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-muted" />
+                )}
+              </button>
+
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="w-full flex items-center justify-between px-4 py-3.5 bg-surface active:bg-surface-elevated transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                    <Download className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">Sincronizar desde la nube</span>
+                    <span className="text-xs text-muted">Descarga tus datos guardados en Supabase</span>
+                  </div>
+                </div>
+                {isSyncing ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-muted border-t-accent animate-spin" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-muted" />
+                )}
+              </button>
             </div>
           </section>
 

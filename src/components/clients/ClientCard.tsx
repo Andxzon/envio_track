@@ -6,7 +6,7 @@
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
-import { MapPin, Scan, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, Scan, Pencil, Trash2, Cloud, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { PROVIDER_LABELS, type Client, type ShipmentStatus } from '@/lib/types';
 
@@ -33,7 +33,14 @@ export function ClientCard({ client, index, onTrack, onEdit, onDelete, onStatusC
       {/* Header: nombre + estado */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-foreground truncate">{client.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-foreground truncate">{client.name}</h3>
+            {client.isSyncing ? (
+              <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+            ) : client.syncedToCloud ? (
+              <Cloud className="w-4 h-4 text-blue-500 shrink-0" />
+            ) : null}
+          </div>
           <div className="flex items-center gap-1.5 mt-1">
             <MapPin className="w-3 h-3 text-muted shrink-0" />
             <span className="text-xs text-muted truncate">{client.city}</span>

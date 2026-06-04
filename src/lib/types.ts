@@ -45,6 +45,8 @@ export interface Client {
   createdAt: string;
   deletedAt: string | null; // null = activo, fecha = en papelera
   trackingHistory: TrackingEvent[];
+  syncedToCloud?: boolean;
+  isSyncing?: boolean;
 }
 
 /** Configuración de colores para cada estado */

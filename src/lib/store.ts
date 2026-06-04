@@ -21,7 +21,7 @@ interface AppStore {
   toasts: Toast[];
 
   // Acciones CRUD
-  addClient: (client: Omit<Client, 'id' | 'createdAt' | 'lastUpdate' | 'deletedAt' | 'trackingHistory'>) => void;
+  addClient: (client: Omit<Client, 'id' | 'createdAt' | 'lastUpdate' | 'deletedAt' | 'trackingHistory' | 'isSyncing' | 'syncedToCloud'>) => string;
   updateClient: (id: string, data: Partial<Client>) => void;
   updateClientStatus: (id: string, status: ShipmentStatus, description?: string, location?: string) => void;
 
@@ -78,12 +78,15 @@ export const useAppStore = create<AppStore>()(
       // ─── CRUD ──────────────────────────────────────────────────────
       addClient: (clientData) => {
         const now = new Date().toISOString();
+        const id = generateId();
         const newClient: Client = {
           ...clientData,
-          id: generateId(),
+          id,
           createdAt: now,
           lastUpdate: now,
           deletedAt: null,
+          isSyncing: true,
+          syncedToCloud: false,
           trackingHistory: [
             {
               id: generateId(),
@@ -95,6 +98,7 @@ export const useAppStore = create<AppStore>()(
           ],
         };
         set((state) => ({ clients: [newClient, ...state.clients] }));
+        return id;
       },
 
       updateClient: (id, data) => {
