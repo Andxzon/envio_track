@@ -6,11 +6,12 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Home, PlusCircle, Trash2, Settings } from 'lucide-react';
+import { Home, PlusCircle, Trash2, Settings, ScanLine } from 'lucide-react';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Inicio' },
   { href: '/new', icon: PlusCircle, label: 'Agregar' },
+  { href: '/scanner', icon: ScanLine, label: 'Escanear' },
   { href: '/trash', icon: Trash2, label: 'Papelera' },
   { href: '/settings', icon: Settings, label: 'Ajustes' },
 ];

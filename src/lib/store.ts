@@ -255,17 +255,17 @@ export const useAppStore = create<AppStore>()(
       },
 
       getStats: () => {
-        const active = get().getActiveClients();
-        const totalCollected = active.reduce((acc, c) => acc + (c.isPaid ? (c.price || 0) : 0), 0);
-        const totalPending = active.reduce((acc, c) => acc + (!c.isPaid ? (c.price || 0) : 0), 0);
+        const filtered = get().getFilteredClients();
+        const totalCollected = filtered.reduce((acc, c) => acc + (c.isPaid ? (c.price || 0) : 0), 0);
+        const totalPending = filtered.reduce((acc, c) => acc + (!c.isPaid ? (c.price || 0) : 0), 0);
 
         return {
-          total: active.length,
-          recibido: active.filter((c) => c.status === 'recibido').length,
-          en_camino: active.filter((c) => c.status === 'en_camino').length,
-          devolucion: active.filter((c) => c.status === 'devolucion').length,
-          pendiente: active.filter((c) => c.status === 'pendiente').length,
-          cancelado: active.filter((c) => c.status === 'cancelado').length,
+          total: filtered.length,
+          recibido: filtered.filter((c) => c.status === 'recibido').length,
+          en_camino: filtered.filter((c) => c.status === 'en_camino').length,
+          devolucion: filtered.filter((c) => c.status === 'devolucion').length,
+          pendiente: filtered.filter((c) => c.status === 'pendiente').length,
+          cancelado: filtered.filter((c) => c.status === 'cancelado').length,
           totalCollected,
           totalPending,
         };

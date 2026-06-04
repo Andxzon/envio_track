@@ -6,6 +6,7 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { FilterBar } from '@/components/filters/FilterBar';
 import { ClientList } from '@/components/clients/ClientList';
 import { BottomNav } from '@/components/ui/BottomNav';
+import { ConnectionIndicator } from '@/components/ui/ConnectionIndicator';
 
 export default function Home() {
   return (
@@ -17,6 +18,7 @@ export default function Home() {
             <h1 className="text-xl font-bold bg-gradient-to-r from-accent to-accent-hover bg-clip-text text-transparent">
               EnvioTrack
             </h1>
+            <ConnectionIndicator />
           </div>
         </header>
 
