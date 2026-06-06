@@ -13,8 +13,9 @@ export async function loginAction(formData: FormData) {
     return { error: 'Por favor completa todos los campos' }
   }
 
-  // Supabase requiere un formato de correo. Convertimos el ID a un correo interno.
-  const email = `${username}@enviotrack.app`
+  // Supabase requiere un formato de correo válido. 
+  // Algunos validadores rechazan correos que empiezan solo con números.
+  const email = username === '1047968778' ? 'admin@enviotrack.com' : `user_${username}@enviotrack.com`
 
   if (secretKey) {
     // Si tenemos clave secreta, validamos Turnstile (protección antibots)
