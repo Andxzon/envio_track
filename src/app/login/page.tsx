@@ -61,10 +61,10 @@ export default function LoginPage() {
                   <Mail className="w-5 h-5 text-muted" />
                 </div>
                 <input
-                  type="email"
-                  name="email"
+                  type="text"
+                  name="username"
                   required
-                  placeholder="Correo electrónico"
+                  placeholder="Usuario o ID"
                   className="w-full pl-11 pr-4 py-3.5 bg-background/50 border border-border rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all"
                 />
               </div>
