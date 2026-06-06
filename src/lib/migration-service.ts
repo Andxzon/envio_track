@@ -87,8 +87,20 @@ export async function syncFromSupabase(): Promise<boolean> {
       syncedToCloud: true,
     }));
 
-    // Reemplazamos la memoria local con los datos de la nube
-    useAppStore.setState({ clients: cloudClients });
+    const currentClients = useAppStore.getState().clients;
+    
+    // Conservar los clientes locales que NO han sido subidos a la nube aún
+    const unsyncedLocalClients = currentClients.filter(c => !c.syncedToCloud);
+    
+    // Fusionar: Clientes de la nube + Clientes locales pendientes
+    // Si hay un conflicto de ID (raro), gana el de la nube
+    const cloudIds = new Set(cloudClients.map(c => c.id));
+    const finalClients = [
+      ...cloudClients,
+      ...unsyncedLocalClients.filter(c => !cloudIds.has(c.id))
+    ];
+
+    useAppStore.setState({ clients: finalClients });
   }
 
   return true;
