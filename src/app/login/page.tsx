@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const [isTurnstileSolved, setIsTurnstileSolved] = useState(!siteKey)
 
   const handleSubmit = async (formData: FormData) => {
     setIsLoading(true)
@@ -85,8 +86,14 @@ export default function LoginPage() {
 
             {/* Widget de Cloudflare */}
             {siteKey ? (
-              <div className="flex justify-center py-2">
-                <Turnstile siteKey={siteKey} options={{ theme: 'auto' }} />
+              <div className="flex justify-center py-2 min-h-[65px]">
+                <Turnstile 
+                  siteKey={siteKey} 
+                  options={{ theme: 'auto' }} 
+                  onSuccess={() => setIsTurnstileSolved(true)}
+                  onError={() => setIsTurnstileSolved(false)}
+                  onExpire={() => setIsTurnstileSolved(false)}
+                />
               </div>
             ) : (
               <div className="text-xs text-center text-amber-500 border border-amber-500/20 bg-amber-500/10 rounded-lg py-2">
@@ -96,8 +103,8 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-4 rounded-xl bg-gradient-to-r from-accent to-accent-hover text-white font-bold shadow-lg shadow-accent/25 hover:shadow-accent/40 active:scale-[0.98] transition-all disabled:opacity-70 disabled:active:scale-100 flex justify-center items-center gap-2"
+              disabled={isLoading || !isTurnstileSolved}
+              className="w-full py-4 rounded-xl bg-gradient-to-r from-accent to-accent-hover text-white font-bold shadow-lg shadow-accent/25 hover:shadow-accent/40 active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:active:scale-100 flex justify-center items-center gap-2"
             >
               {isLoading ? (
                 <>
