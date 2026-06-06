@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Package, Mail, Lock, AlertCircle, Loader2, Fingerprint } from 'lucide-react'
 import { Turnstile } from '@marsidev/react-turnstile'
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [biometricSupported, setBiometricSupported] = useState(false)
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const [isTurnstileSolved, setIsTurnstileSolved] = useState(!siteKey)
+  const router = useRouter()
 
   useEffect(() => {
     async function checkBiometric() {
@@ -43,7 +45,10 @@ export default function LoginPage() {
     try {
       const success = await authenticateWithBiometric()
       if (success) {
-        window.location.href = '/'
+        // Renovar session storage antes de navegar
+        sessionStorage.setItem('last_biometric_verification', Date.now().toString());
+        sessionStorage.setItem('last_active_time', Date.now().toString());
+        router.replace('/')
       } else {
         setError('No se pudo verificar tu identidad. Intenta con contraseña.')
         setShowPasswordForm(true)
@@ -72,7 +77,10 @@ export default function LoginPage() {
           // Silencioso: si falla el registro biométrico, no importa
         }
       }
-      window.location.href = '/'
+      // Renovar session storage antes de navegar
+      sessionStorage.setItem('last_biometric_verification', Date.now().toString());
+      sessionStorage.setItem('last_active_time', Date.now().toString());
+      router.replace('/')
     }
   }
 
