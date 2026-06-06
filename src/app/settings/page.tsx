@@ -248,7 +248,7 @@ export default function SettingsPage() {
               </div>
               <div className="text-center">
                 <h3 className="text-base font-bold text-foreground">EnvioTrack</h3>
-                <p className="text-xs text-muted">Versión 1.0.0 (PWA)</p>
+                <p className="text-xs text-muted">Versión 1.1 alpha (PWA)</p>
               </div>
             </div>
           </section>
