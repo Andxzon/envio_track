@@ -60,9 +60,12 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => {
-        // Si no hay red, buscar en cache
-        return caches.match(event.request);
-      })
   );
+});
+
+// Mensajes desde el cliente
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

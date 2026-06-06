@@ -167,3 +167,16 @@ export async function syncPendingClients(): Promise<void> {
     await uploadSingleClient(client.id);
   }
 }
+
+/**
+ * Elimina un cliente permanentemente de Supabase.
+ */
+export async function deleteSingleClient(id: string): Promise<boolean> {
+  const supabase = createClient();
+  const { error } = await supabase.from('clientes').delete().eq('id', id);
+  if (error) {
+    console.error('Error eliminando cliente permanentemente de Supabase:', error);
+    return false;
+  }
+  return true;
+}

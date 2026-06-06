@@ -8,6 +8,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { ToastContainer } from '@/components/ui/Toast';
 import { SyncManager } from '@/components/providers/SyncManager';
+import { PwaUpdater } from '@/components/providers/PwaUpdater';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -80,6 +81,7 @@ export default function RootLayout({
           {children}
           <ToastContainer />
           <SyncManager />
+          <PwaUpdater />
         </ThemeProvider>
       </body>
     </html>

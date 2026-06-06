@@ -4,7 +4,8 @@
 'use client';
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
+import { get, set, del } from 'idb-keyval';
 import type { Client, ShipmentStatus, ActiveFilters, DashboardStats, TrackingEvent } from './types';
 
 /** Genera un ID único */
@@ -144,23 +145,26 @@ export const useAppStore = create<AppStore>()(
       softDelete: (id) => {
         set((state) => ({
           clients: state.clients.map((c) =>
-            c.id === id ? { ...c, deletedAt: new Date().toISOString() } : c
+            c.id === id ? { ...c, deletedAt: new Date().toISOString(), syncedToCloud: false } : c
           ),
         }));
+        import('./migration-service').then(m => m.uploadSingleClient(id)).catch(console.error);
       },
 
       restore: (id) => {
         set((state) => ({
           clients: state.clients.map((c) =>
-            c.id === id ? { ...c, deletedAt: null } : c
+            c.id === id ? { ...c, deletedAt: null, syncedToCloud: false } : c
           ),
         }));
+        import('./migration-service').then(m => m.uploadSingleClient(id)).catch(console.error);
       },
 
       permanentDelete: (id) => {
         set((state) => ({
           clients: state.clients.filter((c) => c.id !== id),
         }));
+        import('./migration-service').then(m => m.deleteSingleClient(id)).catch(console.error);
       },
 
       emptyTrash: () => {
@@ -284,6 +288,20 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: 'enviotrack-storage',
+      storage: createJSONStorage(() => ({
+        getItem: async (name: string): Promise<string | null> => {
+          if (typeof window === 'undefined') return null;
+          return (await get(name)) || null;
+        },
+        setItem: async (name: string, value: string): Promise<void> => {
+          if (typeof window === 'undefined') return;
+          await set(name, value);
+        },
+        removeItem: async (name: string): Promise<void> => {
+          if (typeof window === 'undefined') return;
+          await del(name);
+        },
+      }) as StateStorage),
       // Solo persistir datos esenciales, no los toasts
       partialize: (state) => ({
         clients: state.clients,
