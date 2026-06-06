@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { hasStoredCredential } from '@/lib/webauthn-service';
@@ -9,62 +9,93 @@ export function BiometricEnforcer() {
   const pathname = usePathname();
   const router = useRouter();
   const { biometricInterval } = useAppStore();
+  const hiddenTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    // Si estamos en la página de login, actualizar el temporizador de verificación
+    // Si la biometría está en "nunca" o no hay credenciales, no hacer nada
+    if (biometricInterval === 'never' || !hasStoredCredential()) return;
+
     if (pathname === '/login') {
+      // Registramos que acabamos de pasar por el login
       sessionStorage.setItem('last_biometric_verification', Date.now().toString());
+      sessionStorage.setItem('last_active_time', Date.now().toString());
       return;
     }
 
-    // Si el usuario eligió "nunca" o no tiene biometría configurada, no hacer nada
-    if (biometricInterval === 'never') return;
-    if (!hasStoredCredential()) return;
-
-    const checkVerification = () => {
-      // Ignorar si estamos en login
+    const checkLock = (isComingFromBackground = false) => {
       if (window.location.pathname === '/login') return;
 
       const lastVerifiedStr = sessionStorage.getItem('last_biometric_verification');
+      const lastActiveStr = sessionStorage.getItem('last_active_time');
+      
       const lastVerified = lastVerifiedStr ? parseInt(lastVerifiedStr, 10) : 0;
+      const lastActive = lastActiveStr ? parseInt(lastActiveStr, 10) : 0;
       const now = Date.now();
-      const elapsedMinutes = (now - lastVerified) / 1000 / 60;
 
-      let shouldVerify = false;
+      let shouldLock = false;
 
-      if (biometricInterval === 'always') {
-        // En 'always', si ha pasado más de 10 segundos desde la última vez (para evitar loops)
-        // requerimos verificación si la app se fue al background
-        shouldVerify = (now - lastVerified) > 10000;
-      } else if (biometricInterval === '5min') {
-        shouldVerify = elapsedMinutes >= 5;
-      } else if (biometricInterval === '10min') {
-        shouldVerify = elapsedMinutes >= 10;
+      // 1. Si nunca se ha verificado en esta sesión de la pestaña (ej: abrió nueva pestaña)
+      if (lastVerified === 0) {
+        shouldLock = true;
+      } 
+      // 2. Lógica según el intervalo
+      else if (biometricInterval === 'always') {
+        // 'always' significa que pide biometría solo si la app se fue al fondo y volvió
+        if (isComingFromBackground) {
+           shouldLock = true;
+        }
+      } 
+      else if (biometricInterval === '5min') {
+        const inactiveMinutes = (now - lastActive) / 1000 / 60;
+        if (inactiveMinutes >= 5) shouldLock = true;
+      } 
+      else if (biometricInterval === '10min') {
+        const inactiveMinutes = (now - lastActive) / 1000 / 60;
+        if (inactiveMinutes >= 10) shouldLock = true;
       }
 
-      if (shouldVerify) {
-        // Forzar a re-loguear (se le mostrará el prompt biométrico porque ya está logueado en backend)
+      if (shouldLock) {
         router.replace('/login');
+      } else {
+        // Si no se bloquea, actualizamos el tiempo de actividad
+        sessionStorage.setItem('last_active_time', now.toString());
       }
     };
 
-    // Verificar cuando la app vuelve al primer plano (foreground)
+    // Revisión inmediata al cargar/navegar
+    checkLock(false);
+
+    // Revisión al cambiar de pestaña / minimizar la app
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkVerification();
+      if (document.visibilityState === 'hidden') {
+        hiddenTimeRef.current = Date.now();
+      } else if (document.visibilityState === 'visible') {
+        const timeHidden = Date.now() - hiddenTimeRef.current;
+        // Solo bloquear si estuvo oculta por más de 1 segundo (evita falsos positivos rápidos)
+        const isComingFromBackground = timeHidden > 1000;
+        checkLock(isComingFromBackground);
       }
     };
 
-    // Verificar también periódicamente por si está usando la app sin cambiar de pestaña
-    const intervalId = setInterval(checkVerification, 30000); 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Actualizar "last_active_time" al interactuar con la pantalla (clicks, scrolls)
+    const handleUserActivity = () => {
+      sessionStorage.setItem('last_active_time', Date.now().toString());
+    };
 
-    // Verificación inicial al cargar el componente
-    checkVerification();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('scroll', handleUserActivity, { passive: true });
+    window.addEventListener('touchstart', handleUserActivity, { passive: true });
+
+    // Revisar periódicamente por inactividad
+    const intervalId = setInterval(() => checkLock(false), 60000); // Cada 1 minuto
 
     return () => {
-      clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('scroll', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
+      clearInterval(intervalId);
     };
   }, [pathname, biometricInterval, router]);
 
