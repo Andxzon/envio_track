@@ -81,8 +81,8 @@ export async function loginAction(formData: FormData) {
     }
   }
 
-  // Redirigir al inicio después de loguear
-  redirect('/')
+  // Login exitoso — retornar éxito para que el cliente pueda registrar biometría antes de navegar
+  return { success: true }
 }
 
 export async function signOutAction() {

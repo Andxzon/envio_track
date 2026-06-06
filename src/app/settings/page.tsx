@@ -148,17 +148,7 @@ export default function SettingsPage() {
       try {
         const backupService = await import('@/lib/backup-service');
         const count = await backupService.importBackup(passwordModal.file, password);
-        
-        // Auto-subir a la nube inmediatamente después de importar
-        try {
-          const migrationService = await import('@/lib/migration-service');
-          await migrationService.migrateLocalDataToSupabase();
-          addToast({ type: 'success', message: `${count} clientes importados y sincronizados con la nube ✅` });
-        } catch (migrationError: any) {
-          console.error(migrationError);
-          addToast({ type: 'error', message: `${count} importados, pero falló al subir a la nube: ${migrationError.message}` });
-        }
-        
+        addToast({ type: 'success', message: `${count} cliente(s) importado(s) correctamente ✅` });
       } catch (e: any) {
         addToast({ type: 'error', message: e.message || 'Error al importar backup' });
       } finally {
