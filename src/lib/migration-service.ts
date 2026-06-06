@@ -82,7 +82,7 @@ export async function syncFromSupabase(): Promise<boolean> {
       shipDate: d.shipDate,
       lastUpdate: d.lastUpdate,
       createdAt: d.createdAt,
-      deletedAt: d.deletedAt,
+      deletedAt: d.deletedAt || null,
       trackingHistory: d.trackingHistory || [],
       syncedToCloud: true,
     }));

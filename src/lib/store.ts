@@ -158,7 +158,7 @@ export const useAppStore = create<AppStore>()(
 
       emptyTrash: () => {
         set((state) => ({
-          clients: state.clients.filter((c) => c.deletedAt === null),
+          clients: state.clients.filter((c) => !c.deletedAt),
         }));
       },
 
@@ -198,16 +198,16 @@ export const useAppStore = create<AppStore>()(
 
       // ─── Getters computados ────────────────────────────────────────
       getActiveClients: () => {
-        return get().clients.filter((c) => c.deletedAt === null);
+        return get().clients.filter((c) => !c.deletedAt);
       },
 
       getTrashClients: () => {
-        return get().clients.filter((c) => c.deletedAt !== null);
+        return get().clients.filter((c) => !!c.deletedAt);
       },
 
       getFilteredClients: () => {
         const { clients, filters } = get();
-        let filtered = clients.filter((c) => c.deletedAt === null);
+        let filtered = clients.filter((c) => !c.deletedAt);
 
         // Filtro por búsqueda
         if (filters.search) {
