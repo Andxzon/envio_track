@@ -97,17 +97,37 @@ export async function syncFromSupabase(): Promise<boolean> {
       throw new Error('Protección anti-borrado: La nube no devolvió ningún cliente. Sincronización abortada para proteger tu información local.');
     }
     
-    // Conservar los clientes locales que NO han sido subidos a la nube aún
-    const unsyncedLocalClients = currentClients.filter(c => !c.syncedToCloud);
-    
-    const unsyncedIds = new Set(unsyncedLocalClients.map(c => c.id));
-    
-    // Fusionar: Clientes locales pendientes + Clientes de la nube
-    // Si hay un conflicto de ID, gana el local que tiene cambios sin subir
-    const finalClients = [
-      ...unsyncedLocalClients,
-      ...cloudClients.filter(c => !unsyncedIds.has(c.id))
-    ];
+    // FUSIÓN INTELIGENTE (Last Write Wins)
+    const finalClients: Client[] = [];
+    const localMap = new Map(currentClients.map(c => [c.id, c]));
+
+    for (const cloud of cloudClients) {
+      const local = localMap.get(cloud.id);
+      if (!local) {
+        // Nuevo en la nube
+        finalClients.push(cloud);
+      } else {
+        // Conflicto: existe en ambos lados
+        const cloudTime = new Date(cloud.lastUpdate).getTime();
+        const localTime = new Date(local.lastUpdate).getTime();
+        
+        // Si el local tiene cambios sin subir Y es cronológicamente MÁS NUEVO
+        if (!local.syncedToCloud && localTime > cloudTime) {
+          finalClients.push(local);
+        } else {
+          // La nube es más nueva, o igual, o el local no tiene cambios
+          finalClients.push(cloud);
+        }
+        localMap.delete(cloud.id);
+      }
+    }
+
+    // Clientes creados offline que aún no se han subido
+    for (const local of localMap.values()) {
+      if (!local.syncedToCloud) {
+        finalClients.push(local);
+      }
+    }
 
     useAppStore.setState({ clients: finalClients });
   }
@@ -124,6 +144,25 @@ export async function uploadSingleClient(id: string): Promise<boolean> {
   if (!client) return false;
 
   const supabase = createClient();
+  
+  // PROTECCIÓN LWW: Verificar si la nube tiene una versión más nueva antes de sobreescribir
+  const { data: cloudData, error: fetchError } = await supabase
+    .from('clientes')
+    .select('lastUpdate')
+    .eq('id', client.id)
+    .single();
+
+  if (!fetchError && cloudData) {
+    const cloudTime = new Date(cloudData.lastUpdate).getTime();
+    const localTime = new Date(client.lastUpdate).getTime();
+
+    if (cloudTime > localTime) {
+      console.warn(`Protección LWW: El cliente ${client.id} es más nuevo en la nube. Abortando subida para no sobreescribir.`);
+      // Sincronizar silenciosamente para bajarnos esa versión más nueva
+      setTimeout(() => syncFromSupabase().catch(console.error), 100);
+      return false;
+    }
+  }
   
   const dataToInsert = {
     id: client.id,
