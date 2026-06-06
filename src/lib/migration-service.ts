@@ -88,6 +88,14 @@ export async function syncFromSupabase(): Promise<boolean> {
     }));
 
     const currentClients = useAppStore.getState().clients;
+
+    // BLOQUEO DE SEGURIDAD EXTREMA:
+    // Como usamos borrado lógico (deletedAt), la base de datos NUNCA debería devolver 0 clientes
+    // si ya tenías clientes antes. Si devuelve 0, es casi seguro un error de seguridad (RLS) 
+    // o un fallo de red grave. Abortamos para proteger los datos locales.
+    if (cloudClients.length === 0 && currentClients.length > 0) {
+      throw new Error('Protección anti-borrado: La nube no devolvió ningún cliente. Sincronización abortada para proteger tu información local.');
+    }
     
     // Conservar los clientes locales que NO han sido subidos a la nube aún
     const unsyncedLocalClients = currentClients.filter(c => !c.syncedToCloud);
