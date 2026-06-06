@@ -3,9 +3,9 @@
 // ============================================================================
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Moon, Sun, Download, FileSpreadsheet, BellRing, Settings2, Package, ChevronRight, CloudUpload } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Moon, Sun, Download, FileSpreadsheet, BellRing, Settings2, Package, ChevronRight, CloudUpload, Shield, Upload, X } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { BottomNav } from '@/components/ui/BottomNav';
 // export-service se importa dinámicamente en cada handler para evitar SSR issues
@@ -19,6 +19,14 @@ export default function SettingsPage() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  
+  // Modal de contraseña
+  const [passwordModal, setPasswordModal] = useState<{ mode: 'export' | 'import'; file?: File } | null>(null);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -87,13 +95,76 @@ export default function SettingsPage() {
     }
   };
 
+  const handleExportBackup = () => {
+    setPassword('');
+    setConfirmPassword('');
+    setPasswordModal({ mode: 'export' });
+  };
+
+  const handleImportBackup = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.etbak')) {
+      addToast({ type: 'error', message: 'El archivo debe ser .etbak (backup de EnvioTrack)' });
+      return;
+    }
+    setPassword('');
+    setPasswordModal({ mode: 'import', file });
+    // Reset the file input
+    e.target.value = '';
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (!password || password.length < 4) {
+      addToast({ type: 'error', message: 'La contraseña debe tener al menos 4 caracteres' });
+      return;
+    }
+
+    if (passwordModal?.mode === 'export') {
+      if (password !== confirmPassword) {
+        addToast({ type: 'error', message: 'Las contraseñas no coinciden' });
+        return;
+      }
+      setIsBackingUp(true);
+      try {
+        const backupService = await import('@/lib/backup-service');
+        await backupService.exportBackup(password);
+        addToast({ type: 'success', message: 'Backup encriptado descargado ✅' });
+      } catch (e: any) {
+        addToast({ type: 'error', message: e.message || 'Error al exportar backup' });
+      } finally {
+        setIsBackingUp(false);
+        setPasswordModal(null);
+        setPassword('');
+        setConfirmPassword('');
+      }
+    } else if (passwordModal?.mode === 'import' && passwordModal.file) {
+      setIsImporting(true);
+      try {
+        const backupService = await import('@/lib/backup-service');
+        const count = await backupService.importBackup(passwordModal.file, password);
+        addToast({ type: 'success', message: `${count} cliente(s) importado(s) correctamente ✅` });
+      } catch (e: any) {
+        addToast({ type: 'error', message: e.message || 'Error al importar backup' });
+      } finally {
+        setIsImporting(false);
+        setPasswordModal(null);
+        setPassword('');
+      }
+    }
+  };
+
   const SectionTitle = ({ children }: { children: React.ReactNode }) => (
     <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2 px-4">
       {children}
     </h2>
   );
 
-  return (
+  const content = (
     <>
       <main className="flex-1 pb-safe">
         <header className="sticky top-0 z-30 glass border-b border-border-light px-4 py-3">
@@ -240,6 +311,61 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          {/* Copias de Seguridad */}
+          <section>
+            <SectionTitle>Copias de Seguridad</SectionTitle>
+            <div className="bg-surface border-y sm:border-x sm:border-border sm:rounded-2xl overflow-hidden divide-y divide-border">
+              <button
+                onClick={handleExportBackup}
+                disabled={isBackingUp}
+                className="w-full flex items-center justify-between px-4 py-3.5 bg-surface active:bg-surface-elevated transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                    <Shield className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">Crear Backup Encriptado</span>
+                    <span className="text-xs text-muted">Genera un archivo .etbak protegido con contraseña</span>
+                  </div>
+                </div>
+                {isBackingUp ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-muted border-t-accent animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 text-muted" />
+                )}
+              </button>
+
+              <button
+                onClick={handleImportBackup}
+                disabled={isImporting}
+                className="w-full flex items-center justify-between px-4 py-3.5 bg-surface active:bg-surface-elevated transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-500 flex items-center justify-center">
+                    <Upload className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">Restaurar Backup</span>
+                    <span className="text-xs text-muted">Importa un archivo .etbak desde tu dispositivo</span>
+                  </div>
+                </div>
+                {isImporting ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-muted border-t-accent animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 text-muted" />
+                )}
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".etbak"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+          </section>
+
           {/* Info */}
           <section className="px-4">
             <div className="flex flex-col items-center justify-center gap-2 py-6">
@@ -255,6 +381,82 @@ export default function SettingsPage() {
         </div>
       </main>
       <BottomNav />
+    </>
+  );
+
+  // Modal de contraseña
+  const modal = (
+    <AnimatePresence>
+      {passwordModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPasswordModal(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-surface rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 border border-border"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-foreground">
+                {passwordModal.mode === 'export' ? '🔐 Proteger Backup' : '🔓 Desbloquear Backup'}
+              </h3>
+              <button onClick={() => setPasswordModal(null)} className="text-muted hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-muted">
+              {passwordModal.mode === 'export'
+                ? 'Escribe una contraseña para encriptar tu backup. La necesitarás para restaurarlo.'
+                : 'Ingresa la contraseña con la que se creó este backup.'}
+            </p>
+
+            <div className="space-y-3">
+              <input
+                type="password"
+                placeholder="Contraseña"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                autoFocus
+              />
+              {passwordModal.mode === 'export' && (
+                <input
+                  type="password"
+                  placeholder="Confirmar contraseña"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              )}
+            </div>
+
+            <button
+              onClick={handlePasswordSubmit}
+              disabled={isBackingUp || isImporting}
+              className="w-full py-3 rounded-xl bg-accent text-white font-semibold text-sm hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {(isBackingUp || isImporting) && (
+                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              )}
+              {passwordModal.mode === 'export' ? 'Crear Backup' : 'Restaurar'}
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  return (
+    <>
+      {content}
+      {modal}
     </>
   );
 }

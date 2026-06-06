@@ -25,10 +25,8 @@ export default function Home() {
     setIsRefreshing(true);
     try {
       await syncFromSupabase();
-      addToast({ type: 'success', message: 'Datos actualizados desde la nube' });
     } catch (e: any) {
       console.error(e);
-      // Opcional: mostrar error silencioso o solo cuando el usuario lo pida explícitamente
     } finally {
       setIsRefreshing(false);
       setPullProgress(0);
@@ -105,9 +103,14 @@ export default function Home() {
         {/* Header simple */}
         <header className="sticky top-0 z-30 glass border-b border-border-light px-4 py-3">
           <div className="flex justify-between items-center max-w-2xl mx-auto">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-accent to-accent-hover bg-clip-text text-transparent">
-              EnvioTrack
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold bg-gradient-to-r from-accent to-accent-hover bg-clip-text text-transparent">
+                EnvioTrack
+              </h1>
+              {isRefreshing && (
+                <div className="w-4 h-4 rounded-full border-2 border-muted border-t-accent animate-spin" />
+              )}
+            </div>
             <ConnectionIndicator />
           </div>
         </header>
