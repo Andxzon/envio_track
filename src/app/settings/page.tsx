@@ -5,9 +5,10 @@
 
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Download, FileSpreadsheet, BellRing, Settings2, Package, ChevronRight, CloudUpload, Shield, Upload, X } from 'lucide-react';
+import { Moon, Sun, Download, FileSpreadsheet, BellRing, Settings2, Package, ChevronRight, CloudUpload, Shield, Upload, X, LogOut } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { BottomNav } from '@/components/ui/BottomNav';
+import { signOutAction } from '@/app/login/actions';
 // export-service se importa dinámicamente en cada handler para evitar SSR issues
 
 export default function SettingsPage() {
@@ -364,6 +365,26 @@ export default function SettingsPage() {
               className="hidden"
               onChange={handleFileSelected}
             />
+          </section>
+
+          {/* Cuenta */}
+          <section>
+            <SectionTitle>Cuenta</SectionTitle>
+            <div className="bg-surface border-y sm:border-x sm:border-border sm:rounded-2xl overflow-hidden divide-y divide-border">
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  className="w-full flex items-center justify-between px-4 py-3.5 bg-surface active:bg-surface-elevated transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center">
+                      <LogOut className="w-4.5 h-4.5" />
+                    </div>
+                    <span className="text-sm font-medium text-red-500">Cerrar Sesión</span>
+                  </div>
+                </button>
+              </form>
+            </div>
           </section>
 
           {/* Info */}
