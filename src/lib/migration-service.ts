@@ -92,12 +92,13 @@ export async function syncFromSupabase(): Promise<boolean> {
     // Conservar los clientes locales que NO han sido subidos a la nube aún
     const unsyncedLocalClients = currentClients.filter(c => !c.syncedToCloud);
     
-    // Fusionar: Clientes de la nube + Clientes locales pendientes
-    // Si hay un conflicto de ID (raro), gana el de la nube
-    const cloudIds = new Set(cloudClients.map(c => c.id));
+    const unsyncedIds = new Set(unsyncedLocalClients.map(c => c.id));
+    
+    // Fusionar: Clientes locales pendientes + Clientes de la nube
+    // Si hay un conflicto de ID, gana el local que tiene cambios sin subir
     const finalClients = [
-      ...cloudClients,
-      ...unsyncedLocalClients.filter(c => !cloudIds.has(c.id))
+      ...unsyncedLocalClients,
+      ...cloudClients.filter(c => !unsyncedIds.has(c.id))
     ];
 
     useAppStore.setState({ clients: finalClients });

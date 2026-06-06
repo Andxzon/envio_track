@@ -98,6 +98,8 @@ export const useAppStore = create<AppStore>()(
           ],
         };
         set((state) => ({ clients: [newClient, ...state.clients] }));
+        // Auto-upload
+        import('./migration-service').then(m => m.uploadSingleClient(id)).catch(console.error);
         return id;
       },
 
@@ -105,10 +107,12 @@ export const useAppStore = create<AppStore>()(
         set((state) => ({
           clients: state.clients.map((c) =>
             c.id === id
-              ? { ...c, ...data, lastUpdate: new Date().toISOString() }
+              ? { ...c, ...data, lastUpdate: new Date().toISOString(), syncedToCloud: false }
               : c
           ),
         }));
+        // Auto-upload changes
+        import('./migration-service').then(m => m.uploadSingleClient(id)).catch(console.error);
       },
 
       updateClientStatus: (id, status, description, location) => {
@@ -127,10 +131,13 @@ export const useAppStore = create<AppStore>()(
               ...c,
               status,
               lastUpdate: now,
+              syncedToCloud: false,
               trackingHistory: [...c.trackingHistory, event],
             };
           }),
         }));
+        // Auto-upload changes
+        import('./migration-service').then(m => m.uploadSingleClient(id)).catch(console.error);
       },
 
       // ─── Papelera ──────────────────────────────────────────────────

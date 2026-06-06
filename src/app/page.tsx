@@ -42,7 +42,8 @@ export default function Home() {
   }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (mainRef.current && mainRef.current.scrollTop === 0) {
+    // Solo permitir pull-to-refresh si estamos exactamente en el tope de la ventana
+    if (window.scrollY <= 0) {
       startY.current = e.touches[0].clientY;
     } else {
       startY.current = 0;
@@ -52,7 +53,8 @@ export default function Home() {
   const handleTouchMove = (e: React.TouchEvent) => {
     if (isRefreshing || startY.current === 0) return;
     
-    if (mainRef.current && mainRef.current.scrollTop === 0) {
+    // Doble verificación: solo hacer el pull si seguimos en el tope
+    if (window.scrollY <= 0) {
       const currentY = e.touches[0].clientY;
       const pullDistance = currentY - startY.current;
       
