@@ -9,6 +9,7 @@ import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { ToastContainer } from '@/components/ui/Toast';
 import { SyncManager } from '@/components/providers/SyncManager';
 import { PwaUpdater } from '@/components/providers/PwaUpdater';
+import { BiometricEnforcer } from '@/components/providers/BiometricEnforcer';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -82,6 +83,7 @@ export default function RootLayout({
           <ToastContainer />
           <SyncManager />
           <PwaUpdater />
+          <BiometricEnforcer />
         </ThemeProvider>
       </body>
     </html>

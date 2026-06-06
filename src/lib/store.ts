@@ -20,6 +20,7 @@ interface AppStore {
   filters: ActiveFilters;
   isDarkMode: boolean;
   toasts: Toast[];
+  biometricInterval: 'always' | '5min' | '10min' | 'never';
 
   // Acciones CRUD
   addClient: (client: Omit<Client, 'id' | 'createdAt' | 'lastUpdate' | 'deletedAt' | 'trackingHistory' | 'isSyncing' | 'syncedToCloud'>) => string;
@@ -39,6 +40,9 @@ interface AppStore {
   // Tema
   toggleDarkMode: () => void;
   setDarkMode: (value: boolean) => void;
+
+  // Biometría
+  setBiometricInterval: (interval: 'always' | '5min' | '10min' | 'never') => void;
 
   // Toasts
   addToast: (toast: Omit<Toast, 'id'>) => void;
@@ -75,6 +79,7 @@ export const useAppStore = create<AppStore>()(
       filters: DEFAULT_FILTERS,
       isDarkMode: false,
       toasts: [],
+      biometricInterval: 'always' as const,
 
       // ─── CRUD ──────────────────────────────────────────────────────
       addClient: (clientData) => {
@@ -193,6 +198,11 @@ export const useAppStore = create<AppStore>()(
         set({ isDarkMode: value });
       },
 
+      // ─── Biometría ──────────────────────────────────────────────────
+      setBiometricInterval: (interval) => {
+        set({ biometricInterval: interval });
+      },
+
       // ─── Toasts ────────────────────────────────────────────────────
       addToast: (toast) => {
         const id = generateId();
@@ -306,6 +316,7 @@ export const useAppStore = create<AppStore>()(
       partialize: (state) => ({
         clients: state.clients,
         isDarkMode: state.isDarkMode,
+        biometricInterval: state.biometricInterval,
       }),
     }
   )

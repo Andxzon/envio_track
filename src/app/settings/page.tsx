@@ -5,7 +5,7 @@
 
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Download, FileSpreadsheet, BellRing, Settings2, Package, ChevronRight, CloudUpload, Shield, Upload, X, LogOut } from 'lucide-react';
+import { Moon, Sun, Download, FileSpreadsheet, BellRing, Settings2, Package, ChevronRight, CloudUpload, Shield, Upload, X, LogOut, Fingerprint } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { signOutAction } from '@/app/login/actions';
@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const { biometricInterval, setBiometricInterval } = useAppStore();
   
   // Modal de contraseña
   const [passwordModal, setPasswordModal] = useState<{ mode: 'export' | 'import'; file?: File } | null>(null);
@@ -216,6 +217,29 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted" />
+              </div>
+
+              {/* Ajuste de Biometría */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3.5 bg-surface gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/10 text-green-500 flex items-center justify-center shrink-0">
+                    <Fingerprint className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-foreground">Frecuencia de Biometría</span>
+                    <span className="text-xs text-muted">Cuándo pedir Face ID / Huella</span>
+                  </div>
+                </div>
+                <select
+                  value={biometricInterval}
+                  onChange={(e) => setBiometricInterval(e.target.value as any)}
+                  className="bg-background border border-border text-foreground text-sm rounded-lg focus:ring-accent focus:border-accent block w-full sm:w-auto p-2"
+                >
+                  <option value="always">Siempre que abro la app</option>
+                  <option value="5min">Cada 5 minutos</option>
+                  <option value="10min">Cada 10 minutos</option>
+                  <option value="never">Nunca (solo sesión)</option>
+                </select>
               </div>
             </div>
           </section>
