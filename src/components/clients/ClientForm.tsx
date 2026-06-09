@@ -27,7 +27,7 @@ const clientSchema = z.object({
   trackingNumber: z.string().min(3, 'La guía es obligatoria'),
   shippingProvider: z.enum(['interrapidisimo', 'coordinadora', 'servientrega', 'envia', 'otro'] as const),
   status: z.enum(['recibido', 'en_camino', 'devolucion', 'pendiente', 'cancelado'] as const),
-  price: z.number().min(0, 'El precio no puede ser negativo').optional(),
+  price: z.preprocess((val) => (val === '' ? undefined : val), z.number().min(0, 'El precio no puede ser negativo').optional()),
   isPaid: z.boolean(),
   notes: z.string().optional(),
   shipDate: z.string().min(1, 'La fecha es obligatoria'),
@@ -398,10 +398,10 @@ export function ClientForm({ editClient }: ClientFormProps) {
                   step="100"
                   className={`${inputClass('price')} !pl-8`}
                   placeholder=""
-                  value={field.value ? Number(field.value).toLocaleString('es-CO') : ''}
+                  value={field.value !== undefined && field.value !== null && field.value !== '' ? Number(field.value).toLocaleString('es-CO') : ''}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\./g, '');
-                    field.onChange(raw ? Number(raw) : undefined);
+                    field.onChange(raw === '' ? '' : Number(raw));
                   }}
                 />
               </div>
