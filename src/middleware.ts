@@ -41,11 +41,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Si está logueado y trata de ir al login, lo devolvemos
+  // Si está logueado y trata de ir al login, lo devolvemos (a menos que venga bloqueado por biometría)
   if (user && request.nextUrl.pathname === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+    if (request.nextUrl.searchParams.get('locked') !== 'true') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

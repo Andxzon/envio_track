@@ -55,7 +55,7 @@ export function BiometricEnforcer() {
       }
 
       if (shouldLock) {
-        router.replace('/login');
+        router.replace('/login?locked=true');
       } else {
         // Si no se bloquea, actualizamos el tiempo de actividad
         sessionStorage.setItem('last_active_time', now.toString());
