@@ -68,7 +68,7 @@ export function ClientForm({ editClient }: ClientFormProps) {
     watch,
     reset,
   } = useForm<ClientFormData>({
-    resolver: zodResolver(clientSchema),
+    resolver: zodResolver(clientSchema) as any,
     defaultValues: editClient
       ? {
           name: editClient.name,
@@ -205,7 +205,7 @@ export function ClientForm({ editClient }: ClientFormProps) {
     <motion.form
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(onSubmit as any)}
       className="space-y-5"
     >
       {/* Header */}
@@ -398,10 +398,10 @@ export function ClientForm({ editClient }: ClientFormProps) {
                   step="100"
                   className={`${inputClass('price')} !pl-8`}
                   placeholder=""
-                  value={field.value !== undefined && field.value !== null && field.value !== '' ? Number(field.value).toLocaleString('es-CO') : ''}
+                  value={field.value !== undefined && field.value !== null ? Number(field.value).toLocaleString('es-CO') : ''}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/\./g, '');
-                    field.onChange(raw === '' ? '' : Number(raw));
+                    field.onChange(raw === '' ? undefined : Number(raw));
                   }}
                 />
               </div>
